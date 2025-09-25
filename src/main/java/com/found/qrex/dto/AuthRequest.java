@@ -33,7 +33,8 @@ public class AuthRequest {
     @Getter
     @Setter
     public static class UpdateProfileRequest {
+        private String newName;
         private String newPassword;
-        private String newPhone;
+        private String verifyPassword;
     }
 }
