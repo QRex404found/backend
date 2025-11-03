@@ -2,6 +2,7 @@ package com.found.qrex.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -9,6 +10,9 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration; // 👈 import 확인
+
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -23,24 +27,37 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable()) // CSRF 보호 비활성화
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // 세션 사용 안 함
-                .authorizeHttpRequests(authorizeRequests ->
-                        authorizeRequests
-                                // 로그인, 회원가입 API 및 Swagger UI 페이지는 모두 허용
-                                .requestMatchers(
-                                        "/api/auth/login",
-                                        "/api/auth/signup",
-                                        "/v3/api-docs/**",
-                                        "/swagger-ui/**",
-                                        "/swagger-ui.html"
-                                ).permitAll()
-                                // QR 분석 및 커뮤니티 관련 API는 인증된 사용자만 허용
-                                .requestMatchers("/api/analysis/**", "/api/community/**").authenticated()
-                                // 그 외 모든 요청은 인증 필요
-                                .anyRequest().authenticated()
+                // CORS 설정
+                .cors(cors -> cors.configurationSource(request -> {
+                    // var 대신 명시적 타입 사용
+                    CorsConfiguration config = new CorsConfiguration();
+
+                    config.setAllowedOrigins(List.of(
+                            "http://localhost:5173",
+                            "http://localhost:3000",
+                            "http://172.30.129.56:5173", // 👈 이 주소는 필요한지 확인해 보세요.
+                            "http://172.30.133.113:5173"  // 👈 [수정] 실제 요청이 오는 프론트엔드 주소 추가
+                    ));
+
+                    config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
+                    config.setAllowedHeaders(List.of("*"));
+                    config.setAllowCredentials(true);
+                    return config;
+                }))
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers(
+                                "/api/auth/signup",
+                                "/api/auth/login",
+                                "/api/auth/check-id",
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html"
+                        ).permitAll()
+                        .anyRequest().authenticated()
                 )
-                // 커스텀 필터인 JwtAuthenticationFilter를 UsernamePasswordAuthenticationFilter 이전에 추가
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

@@ -1,0 +1,4 @@
+google:
+  safe-browsing:
+    api-key: "AIzaSyA0tr0IHEb1gx3LpO2D_3IcX_MrHJ9PV28" # ⚠️ 나중에 실제 키로 교체할 단 하나의 값
+    lookup-url: "https://safebrowsing.googleapis.com/v4/threatMatches:find"

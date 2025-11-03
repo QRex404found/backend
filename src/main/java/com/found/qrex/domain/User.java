@@ -1,4 +1,3 @@
-//DB:USER
 package com.found.qrex.domain;
 
 import jakarta.persistence.*;
@@ -21,9 +20,11 @@ public class User {
     @Column(name = "USER_NAME", nullable = false, length = 45)
     private String userName;
 
+    /* 1. (복구) 필드명을 원래대로 'userPw'로 유지합니다. */
     @Column(name = "USER_PW", nullable = false, length = 255)
-    private String userPw;
+    private String userPw; // 👈 password -> userPw 로 복구
 
-    @Column(name = "PHONE", length = 20)
-    private String phone;
+    /* 2. (수정) 전화번호 NULL 허용: 회원가입 시 빈 문자열/null 허용 */
+    @Column(name = "PHONE", nullable = true, length = 20)
+    private String phone; // 👈 nullable = true 추가
 }

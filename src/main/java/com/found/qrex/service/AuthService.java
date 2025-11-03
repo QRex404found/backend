@@ -1,4 +1,3 @@
-// 로그인, 회원가입, 구글/카카오 로그인, 회원 정보 수정/탈퇴 등의 로직을 처리합니다.
 package com.found.qrex.service;
 
 import com.found.qrex.domain.User;
@@ -18,18 +17,16 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
-    private final TokenBlacklistService tokenBlacklistService; // 🌟 1. 필드 선언
+    private final TokenBlacklistService tokenBlacklistService;
 
-    // 🌟 2. 생성자 수정: TokenBlacklistService를 파라미터로 받아 주입
     public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtTokenProvider jwtTokenProvider, TokenBlacklistService tokenBlacklistService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenProvider = jwtTokenProvider;
-        this.tokenBlacklistService = tokenBlacklistService; // 주입된 객체 할당
+        this.tokenBlacklistService = tokenBlacklistService;
     }
 
-    // --- 이하 다른 메소드들은 그대로 유지 ---
-
+    // --- 회원가입 (수정 필요 부분 1) ---
     @Transactional
     public void signUp(AuthRequest.SignUpRequest request) {
         if (userRepository.existsByUserId(request.getUserId())) {
@@ -38,14 +35,21 @@ public class AuthService {
         User user = new User();
         user.setUserId(request.getUserId());
         user.setUserName(request.getUserName());
-        user.setUserPw(passwordEncoder.encode(request.getPassword()));
+
+        // 🌟 수정: request.getPassword() -> request.getUserPw()
+        user.setUserPw(passwordEncoder.encode(request.getUserPw()));
+
         user.setPhone(request.getPhone());
         userRepository.save(user);
     }
 
+    // --- 로그인 (수정 필요 부분 2) ---
     public String login(AuthRequest.LoginRequest request) {
         User user = userRepository.findByUserId(request.getUserId())
                 .orElseThrow(() -> new BadCredentialsException("ID 또는 비밀번호가 잘못되었습니다."));
+
+        // 🌟 수정: request.getPassword()는 LoginRequest의 메서드이므로 유지해야 함
+        // LoginRequest DTO는 password 필드를 그대로 쓰고 있으므로 getUserPw()가 아닌 getPassword()가 맞습니다.
         if (!passwordEncoder.matches(request.getPassword(), user.getUserPw())) {
             throw new BadCredentialsException("ID 또는 비밀번호가 잘못되었습니다.");
         }
@@ -57,6 +61,7 @@ public class AuthService {
         return !userRepository.existsByUserId(userId);
     }
 
+    // --- 정보 수정 (수정 필요 부분 3) ---
     @Transactional
     public void updateProfile(String userId, AuthRequest.UpdateProfileRequest request) {
         User user = userRepository.findById(userId)
@@ -68,6 +73,8 @@ public class AuthService {
             if (!request.getNewPassword().equals(request.getVerifyPassword())) {
                 throw new IllegalArgumentException("새 비밀번호가 일치하지 않습니다.");
             }
+
+            // 🌟 수정: request.getNewPassword()는 UpdateProfileRequest의 메서드이므로 유지해야 함
             user.setUserPw(passwordEncoder.encode(request.getNewPassword()));
         }
     }
@@ -81,7 +88,7 @@ public class AuthService {
         String token = resolveToken(request);
 
         if (token != null) {
-            tokenBlacklistService.blacklist(token); // 🌟 3. 이제 정상적으로 사용 가능
+            tokenBlacklistService.blacklist(token);
         }
     }
 
@@ -93,4 +100,3 @@ public class AuthService {
         return null;
     }
 }
-

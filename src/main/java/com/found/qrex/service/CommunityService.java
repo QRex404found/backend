@@ -14,9 +14,11 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
-import java.sql.Timestamp;
-import java.time.LocalDateTime;
+// import java.sql.Timestamp; // 🚨 Timestamp 임포트 삭제 완료!
+import java.time.LocalDateTime; // LocalDateTime 사용
+
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -26,34 +28,43 @@ public class CommunityService {
     private final BoardRepository boardRepository;
     private final CommentRepository commentRepository;
     private final UserRepository userRepository;
+    private final FileStorageService fileStorageService;
 
-    public CommunityService(BoardRepository boardRepository, CommentRepository commentRepository, UserRepository userRepository) {
+    private static final int REPORT_LIMIT = 50;
+
+    public CommunityService(BoardRepository boardRepository, CommentRepository commentRepository, UserRepository userRepository, FileStorageService fileStorageService) {
         this.boardRepository = boardRepository;
         this.commentRepository = commentRepository;
         this.userRepository = userRepository;
+        this.fileStorageService = fileStorageService;
     }
 
-    // 현재 로그인된 사용자를 가져오는 도우미 메서드
     private User getCurrentUser() {
-        // 실제 구현에서는 Spring Security Context에서 사용자 ID를 가져와야 합니다.
         String userId = SecurityContextHolder.getContext().getAuthentication().getName();
         return userRepository.findByUserId(userId).orElseThrow(() -> new RuntimeException("User not found"));
     }
 
     // 게시글 작성
     @Transactional
-    public void createPost(BoardDto.BoardCreateRequest request) {
+    public void createPost(BoardDto.BoardCreateRequest request, MultipartFile photoFile) {
         if (request.getPostTitle() == null || request.getPostTitle().isEmpty() ||
                 request.getPostContents() == null || request.getPostContents().isEmpty()) {
             throw new IllegalArgumentException("제목과 내용을 모두 입력해야 합니다.");
         }
+
+        // 4-1. (추가) 파일 업로드 서비스를 호출하여 URL을 받아옵니다.
+        String imageUrl = fileStorageService.storeFile(photoFile);
+
         Board board = new Board();
         board.setUser(getCurrentUser());
         board.setPostTitle(request.getPostTitle());
         board.setUrl(request.getUrl());
         board.setPostContents(request.getPostContents());
-        board.setImagePath(request.getImagePath());
-        board.setCreatedAt(Timestamp.valueOf(LocalDateTime.now()));
+
+        // 4-2. (수정) DTO의 imagePath 대신, 서비스가 반환한 imageUrl을 저장합니다.
+        board.setImagePath(imageUrl); // 👈 (null 또는 https://placehold.co/... URL이 저장됨)
+
+        board.setCreatedAt(LocalDateTime.now());
         boardRepository.save(board);
     }
 
@@ -64,6 +75,7 @@ public class CommunityService {
             BoardDto.BoardResponse dto = new BoardDto.BoardResponse();
             dto.setBoardId(post.getBoardId());
             dto.setTitle(post.getPostTitle());
+            // 🌟 수정 완료: LocalDateTime을 DTO에 할당 (DTO도 LocalDateTime이라고 가정)
             dto.setCreatedAt(post.getCreatedAt());
             return dto;
         });
@@ -90,6 +102,7 @@ public class CommunityService {
                     commentDto.setCommentId(comment.getCommentId());
                     commentDto.setUserId(comment.getUser().getUserId());
                     commentDto.setContents(comment.getCommentContents());
+                    // 🌟 에러 94 해결 완료: LocalDateTime을 DTO에 할당
                     commentDto.setCreatedAt(comment.getCreatedAt());
                     return commentDto;
                 })
@@ -108,7 +121,8 @@ public class CommunityService {
         comment.setBoard(board);
         comment.setUser(getCurrentUser());
         comment.setCommentContents(request.getContents());
-        comment.setCreatedAt(Timestamp.valueOf(LocalDateTime.now()));
+        // 🌟 에러 112 해결 완료: Timestamp.valueOf() 없이 LocalDateTime.now() 사용
+        comment.setCreatedAt(LocalDateTime.now());
         commentRepository.save(comment);
     }
 
@@ -120,8 +134,55 @@ public class CommunityService {
             BoardDto.BoardResponse dto = new BoardDto.BoardResponse();
             dto.setBoardId(post.getBoardId());
             dto.setTitle(post.getPostTitle());
+            // 🌟 수정 완료: LocalDateTime을 DTO에 할당
             dto.setCreatedAt(post.getCreatedAt());
             return dto;
         });
+    }
+
+    @Transactional
+    public void reportPost(Integer boardId) {
+        Board board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다."));
+
+        board.setReportCount(board.getReportCount() + 1);
+        boardRepository.save(board);
+
+        if (board.getReportCount() >= REPORT_LIMIT) {
+            boardRepository.delete(board);
+        }
+    }
+
+    @Transactional
+    public void reportComment(Integer commentId) {
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new IllegalArgumentException("댓글을 찾을 수 없습니다."));
+
+        comment.setReportCount(comment.getReportCount() + 1);
+        commentRepository.save(comment);
+
+        if (comment.getReportCount() >= REPORT_LIMIT) {
+            commentRepository.delete(comment);
+        }
+    }
+
+    @Transactional
+    public void deletePost(Integer boardId, String userId) {
+        Board board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다."));
+        if (!board.getUser().getUserId().equals(userId)) {
+            throw new IllegalArgumentException("게시글 삭제 권한이 없습니다.");
+        }
+        boardRepository.delete(board);
+    }
+
+    @Transactional
+    public void deleteComment(Integer commentId, String userId) {
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new IllegalArgumentException("댓글을 찾을 수 없습니다."));
+        if (!comment.getUser().getUserId().equals(userId)) {
+            throw new IllegalArgumentException("댓글 삭제 권한이 없습니다.");
+        }
+        commentRepository.delete(comment);
     }
 }

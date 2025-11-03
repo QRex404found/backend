@@ -4,7 +4,8 @@ package com.found.qrex.dto;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.sql.Timestamp;
+// import java.sql.Timestamp; // 🚨 이 임포트 라인을 삭제합니다.
+import java.time.LocalDateTime; // <-- LocalDateTime 임포트 추가
 
 @Getter
 @Setter
@@ -15,7 +16,8 @@ public class CommentDto {
         private Integer commentId;
         private String userId;
         private String contents;
-        private Timestamp createdAt;
+        // 🌟 수정: Timestamp 대신 LocalDateTime 사용
+        private LocalDateTime createdAt;
     }
 
     @Getter

@@ -6,7 +6,8 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
-import java.sql.Timestamp;
+// import java.sql.Timestamp; // 🚨 Timestamp 임포트를 삭제합니다.
+import java.time.LocalDateTime; // <-- LocalDateTime 임포트를 추가합니다.
 
 @Entity
 @Table(name = "BOARD")
@@ -37,9 +38,14 @@ public class Board {
     @Column(name = "POST_CONTENTS", columnDefinition = "TEXT", nullable = false)
     private String postContents;
 
-    @Column(name = "created_at")
-    private Timestamp createdAt;
+    @Column(name = "REPORT_COUNT", nullable = false)
+    private Integer reportCount = 0;
 
+    // 🌟 수정: Timestamp 대신 LocalDateTime 사용
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
+
+    // 🌟 수정: Timestamp 대신 LocalDateTime 사용
     @Column(name = "updated_at")
-    private Timestamp updatedAt;
+    private LocalDateTime updatedAt;
 }

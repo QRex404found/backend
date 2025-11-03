@@ -6,7 +6,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
-import java.sql.Timestamp;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "COMMENT")
@@ -32,9 +32,12 @@ public class Comment {
     @Column(name = "COMMENT_CONTENTS", columnDefinition = "TEXT", nullable = false)
     private String commentContents;
 
+    @Column(name = "REPORT_COUNT", nullable = false)
+    private Integer reportCount = 0;
+
     @Column(name = "created_at")
-    private Timestamp createdAt;
+    private LocalDateTime createdAt;
 
     @Column(name = "updated_at")
-    private Timestamp updatedAt;
+    private LocalDateTime updatedAt;
 }

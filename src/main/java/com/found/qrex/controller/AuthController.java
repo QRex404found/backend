@@ -9,9 +9,13 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
+@Tag(name = "인증/인가 API", description = "사용자 회원가입, 로그인 및 프로필 관련 API입니다.")
 public class AuthController {
 
     private final AuthService authService;
@@ -21,37 +25,48 @@ public class AuthController {
     }
 
     @PostMapping("/signup")
+    @Operation(summary = "회원가입", description = "새로운 사용자를 등록합니다.")
     public ResponseEntity<String> signUp(@RequestBody AuthRequest.SignUpRequest request) {
         authService.signUp(request);
         return ResponseEntity.ok("회원가입 성공!");
     }
 
     @PostMapping("/login")
+    @Operation(summary = "로그인", description = "사용자 인증 후 JWT 토큰을 발급합니다.")
     public ResponseEntity<UserResponse> login(@RequestBody AuthRequest.LoginRequest request) {
         String token = authService.login(request);
         return ResponseEntity.ok(new UserResponse(token));
     }
 
-    // 추가적인 API 엔드포인트: check-id, google, kakao, profile update/delete
+    @PostMapping("/check-id")
+    @Operation(summary = "ID 중복 확인", description = "회원가입 시 사용할 ID가 이미 존재하는지 확인합니다.")
+    public ResponseEntity<Map<String, Boolean>> checkIdDuplication(
+            @RequestBody AuthRequest.CheckIdRequest request
+    ) {
+        boolean isAvailable = authService.isIdAvailable(request.getUserId());
+
+        // 프론트엔드가 { "isAvailable": true } 형식으로 쉽게 받을 수 있도록 Map 사용
+        Map<String, Boolean> response = Map.of("isAvailable", isAvailable);
+
+        return ResponseEntity.ok(response);
+    }
 
     @PutMapping("/profile")
+    @Operation(summary = "프로필 수정", description = "현재 로그인된 사용자의 프로필 정보를 수정합니다.")
     public ResponseEntity<String> updateProfile(
             @AuthenticationPrincipal String userId,
             @RequestBody AuthRequest.UpdateProfileRequest request) {
 
-        authService.updateProfile(userId, request); // userId를 넘겨주도록 서비스 수정 필요
+        authService.updateProfile(userId, request);
         return ResponseEntity.ok("회원정보 수정이 완료되었습니다.");
     }
 
     @DeleteMapping("/profile")
+    @Operation(summary = "회원 탈퇴", description = "현재 로그인된 사용자의 계정을 탈퇴시킵니다. 계정 삭제와 동시에 로그아웃 처리됩니다.")
     public ResponseEntity<String> deleteAccount(
             @AuthenticationPrincipal String userId,
-
-
-
-            HttpServletRequest request // 🌟 현재 요청 객체를 직접 받아오도록 수정
+            HttpServletRequest request
     ) {
-        // 🌟 사용자 ID와 요청 객체를 함께 서비스로 전달
         authService.deleteAccountAndLogout(userId, request);
         return ResponseEntity.ok("회원 탈퇴 및 로그아웃이 완료되었습니다.");
     }
