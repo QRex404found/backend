@@ -167,20 +167,30 @@ public class CommunityService {
     }
 
     @Transactional
-    public void deletePost(Integer boardId, String userId) {
+    public void deletePost(Integer boardId) { // 👈 userId 파라미터 제거
+        // 1. 현재 로그인한 사용자 ID를 내부에서 직접 가져옵니다.
+        String currentUserId = getCurrentUser().getUserId();
+
         Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다."));
-        if (!board.getUser().getUserId().equals(userId)) {
+
+        // 2. 내부에서 가져온 ID로 비교합니다.
+        if (!board.getUser().getUserId().equals(currentUserId)) {
             throw new IllegalArgumentException("게시글 삭제 권한이 없습니다.");
         }
         boardRepository.delete(board);
     }
 
     @Transactional
-    public void deleteComment(Integer commentId, String userId) {
+    public void deleteComment(Integer commentId) { // 👈 userId 파라미터 제거
+        // 1. 현재 로그인한 사용자 ID를 내부에서 직접 가져옵니다.
+        String currentUserId = getCurrentUser().getUserId();
+
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new IllegalArgumentException("댓글을 찾을 수 없습니다."));
-        if (!comment.getUser().getUserId().equals(userId)) {
+
+        // 2. 내부에서 가져온 ID로 비교합니다.
+        if (!comment.getUser().getUserId().equals(currentUserId)) {
             throw new IllegalArgumentException("댓글 삭제 권한이 없습니다.");
         }
         commentRepository.delete(comment);

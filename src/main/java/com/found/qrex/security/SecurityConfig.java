@@ -10,9 +10,14 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.cors.CorsConfiguration; // 👈 import 확인
+import com.found.qrex.service.CustomOAuth2UserService;
+import org.springframework.beans.factory.annotation.Autowired;
 
-import java.util.List;
+// ★ 1. (추가) CORS 설정을 위한 Import
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import java.util.Arrays; // Arrays.asList를 사용하기 위해 임포트
 
 @Configuration
 @EnableWebSecurity
@@ -20,47 +25,75 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+    private final CustomOAuth2UserService customOAuth2UserService;
+    private final OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
+
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
+                          CustomOAuth2UserService customOAuth2UserService,
+                          OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler
+    ) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.customOAuth2UserService = customOAuth2UserService;
+        this.oAuth2LoginSuccessHandler = oAuth2LoginSuccessHandler;
     }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                // CORS 설정
-                .cors(cors -> cors.configurationSource(request -> {
-                    // var 대신 명시적 타입 사용
-                    CorsConfiguration config = new CorsConfiguration();
+                // ★ 2. (수정) 비어있는 람다 대신, 아래에 만든 'corsConfigurationSource()' Bean을 사용하도록 변경
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
-                    config.setAllowedOrigins(List.of(
-                            "http://localhost:5173",
-                            "http://localhost:3000",
-                            "http://172.30.129.56:5173", // 👈 이 주소는 필요한지 확인해 보세요.
-                            "http://172.30.133.113:5173"  // 👈 [수정] 실제 요청이 오는 프론트엔드 주소 추가
-                    ));
-
-                    config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
-                    config.setAllowedHeaders(List.of("*"));
-                    config.setAllowCredentials(true);
-                    return config;
-                }))
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
+                // ✅ 인증 예외 경로 설정 (OPTIONS는 이미 허용되어 있음 - 좋습니다)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers(
-                                "/api/auth/signup",
-                                "/api/auth/login",
-                                "/api/auth/check-id",
-                                "/v3/api-docs/**",
-                                "/swagger-ui/**",
-                                "/swagger-ui.html"
-                        ).permitAll()
+                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                         .anyRequest().authenticated()
                 )
+
+                // ⬇️ OAuth2 로그인 설정 (기존과 동일)
+                .oauth2Login(oauth2 -> oauth2
+                        .userInfoEndpoint(userInfo -> userInfo
+                                .userService(customOAuth2UserService)
+                        )
+                        .successHandler(oAuth2LoginSuccessHandler)
+                )
+
+                // ✅ JWT 인증 필터 적용 (기존과 동일)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    // ★ 3. (추가) 글로벌 CORS 설정을 위한 Bean
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration config = new CorsConfiguration();
+
+        // (중요) Controller의 @CrossOrigin(origins = ...)에 있던 주소들
+        config.setAllowedOrigins(Arrays.asList(
+                "http://localhost:5173",
+                "http://172.30.133.96:5173",
+                "http://172.30.129.106:5173",
+                "http://172.30.69.67:5173/",
+                "http://172.30.1.40:5173/"
+        ));
+
+        // (중요) 모든 HTTP 메서드 허용
+        config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
+
+        // (중요) 모든 헤더 허용 (특히 'Authorization' - JWT 토큰)
+        config.setAllowedHeaders(Arrays.asList("*"));
+
+        // (중요) 자격 증명(쿠키, JWT 토큰 등) 허용
+        config.setAllowCredentials(true);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", config); // 모든 경로에 이 설정 적용
+        return source;
     }
 
     @Bean

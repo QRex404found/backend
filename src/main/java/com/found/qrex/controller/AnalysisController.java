@@ -19,11 +19,17 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import org.springframework.web.bind.annotation.RequestBody;
+
 
 @RestController
 @RequestMapping("/api/analysis")
 @Tag(name = "분석 API", description = "QR 코드 분석, 기록 조회, 제목 변경 관련 API")
+@CrossOrigin(origins = {
+        "http://localhost:5173", // 5173 포트 허용
+        "http://172.30.133.96:5173", // 게스트 PC의 Network 주소
+        "http://172.30.129.106:5173" // 호스트 PC의 Network 주소
+})  //React 요청 허용 위해 CORS 설정 추가
 public class AnalysisController {
 
     private final AnalysisService analysisService;

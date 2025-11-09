@@ -8,9 +8,13 @@ import com.found.qrex.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+
 import java.util.Map;
 
 @RestController
@@ -44,30 +48,27 @@ public class AuthController {
             @RequestBody AuthRequest.CheckIdRequest request
     ) {
         boolean isAvailable = authService.isIdAvailable(request.getUserId());
-
-        // 프론트엔드가 { "isAvailable": true } 형식으로 쉽게 받을 수 있도록 Map 사용
         Map<String, Boolean> response = Map.of("isAvailable", isAvailable);
-
         return ResponseEntity.ok(response);
     }
 
     @PutMapping("/profile")
     @Operation(summary = "프로필 수정", description = "현재 로그인된 사용자의 프로필 정보를 수정합니다.")
     public ResponseEntity<String> updateProfile(
-            @AuthenticationPrincipal String userId,
+            @AuthenticationPrincipal UserDetails user,
             @RequestBody AuthRequest.UpdateProfileRequest request) {
 
-        authService.updateProfile(userId, request);
+        authService.updateProfile(user.getUsername(), request);
         return ResponseEntity.ok("회원정보 수정이 완료되었습니다.");
     }
 
     @DeleteMapping("/profile")
     @Operation(summary = "회원 탈퇴", description = "현재 로그인된 사용자의 계정을 탈퇴시킵니다. 계정 삭제와 동시에 로그아웃 처리됩니다.")
     public ResponseEntity<String> deleteAccount(
-            @AuthenticationPrincipal String userId,
+            @AuthenticationPrincipal UserDetails user,
             HttpServletRequest request
     ) {
-        authService.deleteAccountAndLogout(userId, request);
+        authService.deleteAccountAndLogout(user.getUsername(), request);
         return ResponseEntity.ok("회원 탈퇴 및 로그아웃이 완료되었습니다.");
     }
 }

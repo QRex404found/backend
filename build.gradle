@@ -48,6 +48,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-webflux'
     implementation 'com.fasterxml.jackson.core:jackson-databind'
     implementation 'com.maxmind.geoip2:geoip2:2.13.0'
+    implementation 'com.cloudinary:cloudinary-http45:1.38.0'
 }
 
 tasks.named('test') {

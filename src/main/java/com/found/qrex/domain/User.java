@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
 
 @Entity
 @Table(name = "USER")
@@ -12,6 +13,7 @@ import lombok.AllArgsConstructor;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@EqualsAndHashCode(of = "userId")
 public class User {
     @Id
     @Column(name = "USER_ID", length = 45)
@@ -22,9 +24,10 @@ public class User {
 
     /* 1. (복구) 필드명을 원래대로 'userPw'로 유지합니다. */
     @Column(name = "USER_PW", nullable = false, length = 255)
-    private String userPw; // 👈 password -> userPw 로 복구
+    private String userPw;
 
-    /* 2. (수정) 전화번호 NULL 허용: 회원가입 시 빈 문자열/null 허용 */
-    @Column(name = "PHONE", nullable = true, length = 20)
-    private String phone; // 👈 nullable = true 추가
+    // ⭐⭐⭐ 추가된 부분: Email 필드 ⭐⭐⭐
+    // 소셜 로그인은 이메일을 필수로 제공하지 않을 수 있으므로, nullable을 true로 설정하는 것이 안전합니다.
+    @Column(name = "EMAIL", length = 45)
+    private String email;
 }

@@ -1,108 +1,108 @@
-//QR 분석 요청 및 결과를 담습니다.
 package com.found.qrex.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.found.qrex.domain.Analysis;
-import lombok.*;
-import java.time.LocalDateTime;
+import com.found.qrex.domain.RiskLevel;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 
-@Getter
-@Setter
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter; // ★ 1. 날짜 포맷을 위해 임포트
+
 public class AnalysisDto {
 
-    // =======================================================================
-    // 1. RAG 통신용 DTO (FastAPI와 통신)
-    // =======================================================================
+    // (이하 RAG, Title, Result DTO는 기존 코드와 동일할 것입니다)
 
-    // FastAPI로 보낼 요청 DTO (AnalysisService에서 사용)
+    // 1. RAG 분석 요청 DTO
     @Getter
-    @Setter
     @NoArgsConstructor
     @AllArgsConstructor
     public static class RAGAnalysisRequest {
         private String url;
-        private String ip_location;
-        private String safe_browsing_result;
+        @JsonProperty("ip_location") // (Python 서버와 키 이름 맞춤)
+        private String ipLocation;
+        @JsonProperty("safe_browsing") // (Python 서버와 키 이름 맞춤)
+        private String safeBrowsing;
     }
 
-    // FastAPI에서 받을 응답 DTO (AnalysisService에서 사용)
+    // 2. RAG 분석 응답 DTO
     @Getter
-    @Setter
     @NoArgsConstructor
     @AllArgsConstructor
     public static class RAGAnalysisResponse {
-        // LLM의 최종 JSON 출력을 문자열로 받습니다.
         private String rag_json_result;
     }
 
-    // =======================================================================
-    // 2. 프론트엔드 응답 DTO (Controller에서 사용)
-    // =======================================================================
-
-    // 2-1. 특정 분석 결과 상세 응답 DTO
+    // 3. 제목 수정 요청 DTO
     @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class AnalysisResultResponse {
-        private Integer analysisId;
-        private String url;
-
-        // RAG 출력 필드
-        private String riskLevel;
-        private String reason;
-
-        // RAG 입력/전처리 필드 (프론트엔드 상세 정보 표시용)
-        private String ipLocation;
-        private String safeBrowsingResult;
-        private String ipAddress;
-
-        // 사용자 입력 필드
-        private String analysisTitle;
-
-        // 엔티티 -> DTO 변환 팩토리 메서드
-        public static AnalysisResultResponse fromEntity(Analysis analysis) {
-            return AnalysisResultResponse.builder()
-                    .analysisId(analysis.getAnalysisId())
-                    .url(analysis.getAnalyzedUrl())
-                    .riskLevel(analysis.getRiskLevel().toString())
-                    .reason(analysis.getReason())
-                    .ipLocation(analysis.getIpLocation())
-                    .ipAddress(analysis.getIpAddress())
-                    .safeBrowsingResult(analysis.getSafeBrowsingResult())
-                    .analysisTitle(analysis.getAnalysisTitle())
-                    .build();
-        }
-    }
-
-    // 2-2. 분석 기록 목록 조회 DTO
-    @Getter
-    @Setter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class AnalysisHistoryResponse {
-        private Integer analysisId;
-        private String analysisUrl;
-        private String riskLevel;
-        private LocalDateTime createdAt;
-
-        public static AnalysisHistoryResponse fromEntity(Analysis analysis) {
-            return AnalysisHistoryResponse.builder()
-                    .analysisId(analysis.getAnalysisId())
-                    .analysisUrl(analysis.getAnalyzedUrl())
-                    .riskLevel(analysis.getRiskLevel().toString())
-                    .createdAt(analysis.getCreatedAt())
-                    .build();
-        }
-    }
-
-    // 2-3. 제목 수정 요청 DTO
-    @Getter
-    @Setter
     @NoArgsConstructor
     @AllArgsConstructor
     public static class UpdateTitleRequest {
         private String title;
+    }
+
+    // 4. 상세 분석 결과 응답 DTO (AnalysisResultResponse)
+    @Getter
+    @Builder
+    public static class AnalysisResultResponse {
+        private Integer analysisId;
+        private String url; // (analyzedUrl)
+        private String ipAddress;
+        private String ipLocation;
+        private String safeBrowsingResult;
+        private String analysisTitle;
+        private RiskLevel riskLevel;
+        private String reason;
+        private String analysisDetailsJson;
+        private String createdAt;
+        private String updatedAt;
+
+        public static AnalysisResultResponse fromEntity(Analysis analysis) {
+            return AnalysisResultResponse.builder()
+                    .analysisId(analysis.getAnalysisId())
+                    .url(analysis.getAnalyzedUrl())
+                    .ipAddress(analysis.getIpAddress())
+                    .ipLocation(analysis.getIpLocation())
+                    .safeBrowsingResult(analysis.getSafeBrowsingResult())
+                    .analysisTitle(analysis.getAnalysisTitle())
+                    .riskLevel(analysis.getRiskLevel())
+                    .reason(analysis.getReason())
+                    .analysisDetailsJson(analysis.getAnalysisDetailsJson())
+                    .createdAt(analysis.getCreatedAt().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
+                    .updatedAt(analysis.getUpdatedAt().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
+                    .build();
+        }
+    }
+
+
+    // =====================================================================
+    // ★ 5. (핵심 수정) 히스토리 목록 응답 DTO (AnalysisHistoryResponse)
+    // =====================================================================
+    @Getter
+    @Builder
+    public static class AnalysisHistoryResponse {
+
+        private Integer analysisId;
+        private String analysisTitle; // ★ 2. (수정) 이 필드가 누락되었습니다.
+        private String analysisUrl;   // (참고: 프론트에서 title이 null일 때 사용할 URL)
+        private String createdAt;
+
+        public static AnalysisHistoryResponse fromEntity(Analysis analysis) {
+
+            // 날짜만 표시 (YYYY-MM-DD)
+            String formattedDate = analysis.getCreatedAt()
+                    .format(DateTimeFormatter.ISO_LOCAL_DATE);
+
+            return AnalysisHistoryResponse.builder()
+                    .analysisId(analysis.getAnalysisId())
+                    // ★ 3. (수정) analysisTitle 매핑 추가
+                    .analysisTitle(analysis.getAnalysisTitle())
+                    // (참고: 프론트에서 || 연산자로 사용)
+                    .analysisUrl(analysis.getAnalyzedUrl())
+                    .createdAt(formattedDate) // (포맷된 날짜 사용)
+                    .build();
+        }
     }
 }

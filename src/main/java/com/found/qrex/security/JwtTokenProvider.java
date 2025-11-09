@@ -1,3 +1,5 @@
+// package com.found.qrex.security;
+
 package com.found.qrex.security;
 
 import io.jsonwebtoken.Claims;
@@ -27,22 +29,28 @@ public class JwtTokenProvider {
         this.accessTokenExpiration = accessTokenExpiration;
     }
 
-    public String generateToken(String userId) {
+    /**
+     * ⭐️ [핵심 수정]
+     * username을 파라미터로 추가하고, claims 맵에 "username" 키로 저장합니다.
+     */
+    public String generateToken(String userId, String username) {
         Date now = new Date();
         Date expiration = new Date(now.getTime() + accessTokenExpiration);
 
-        // 최신 JJWT 빌더 패턴을 사용하여 경고를 제거
         return Jwts.builder()
-                .claims(Map.of("sub", userId)) // setSubject 대신 claims 사용
-                .issuedAt(now) // setIssuedAt 대신
-                .expiration(expiration) // setExpiration 대신
+                // ⭐️ "sub" (userId)와 "username"을 모두 포함시킵니다.
+                .claims(Map.of(
+                        "sub", userId,
+                        "username", username
+                ))
+                .issuedAt(now)
+                .expiration(expiration)
                 .signWith(key)
                 .compact();
     }
 
     public String getUserIdFromToken(String token) {
         try {
-            // Jwts.parserBuilder()가 정상적으로 동작하도록 예외 처리 추가
             Claims claims = Jwts.parser()
                     .verifyWith((SecretKeySpec) key)
                     .build()
@@ -50,7 +58,6 @@ public class JwtTokenProvider {
                     .getPayload();
             return claims.getSubject();
         } catch (ExpiredJwtException e) {
-            // 만료된 토큰의 경우에도 subject를 얻을 수 있도록 수정
             return e.getClaims().getSubject();
         }
     }

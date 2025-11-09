@@ -93,15 +93,17 @@ public class CommunityController {
 
     @DeleteMapping("/posts/{boardId}")
     @Operation(summary = "게시글 삭제", description = "특정 게시글을 삭제합니다.")
-    public ResponseEntity<String> deletePost(@PathVariable Integer boardId, @AuthenticationPrincipal String userId) {
-        communityService.deletePost(boardId, userId);
+    public ResponseEntity<String> deletePost(@PathVariable Integer boardId) { // 👈 userId 파라미터 제거
+        // 서비스 호출 시에도 userId를 넘기지 않습니다.
+        communityService.deletePost(boardId);
         return ResponseEntity.ok("게시글이 삭제되었습니다.");
     }
 
     @DeleteMapping("/comments/{commentId}")
     @Operation(summary = "댓글 삭제", description = "특정 댓글을 삭제합니다.")
-    public ResponseEntity<String> deleteComment(@PathVariable Integer commentId, @AuthenticationPrincipal String userId) {
-        communityService.deleteComment(commentId, userId);
+    public ResponseEntity<String> deleteComment(@PathVariable Integer commentId) { // 👈 userId 파라미터 제거
+        // 서비스 호출 시에도 userId를 넘기지 않습니다.
+        communityService.deleteComment(commentId);
         return ResponseEntity.ok("댓글이 삭제되었습니다.");
     }
 }
