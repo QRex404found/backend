@@ -15,6 +15,7 @@ public class CommentDto {
     public static class CommentResponse {
         private Integer commentId;
         private String userId;
+        private String userName;
         private String contents;
         // 🌟 수정: Timestamp 대신 LocalDateTime 사용
         private LocalDateTime createdAt;

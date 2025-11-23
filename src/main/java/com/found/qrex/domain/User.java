@@ -7,6 +7,8 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 
+import java.util.List;
+
 @Entity
 @Table(name = "USER")
 @Getter
@@ -30,4 +32,16 @@ public class User {
     // 소셜 로그인은 이메일을 필수로 제공하지 않을 수 있으므로, nullable을 true로 설정하는 것이 안전합니다.
     @Column(name = "EMAIL", length = 45)
     private String email;
+
+    // 1. 유저가 작성한 게시글 (삭제 시 같이 삭제)
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Board> boards;
+
+    // 2. 유저가 작성한 댓글 (삭제 시 같이 삭제)
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Comment> comments;
+
+    // 3. 유저의 QR 분석 기록 (삭제 시 같이 삭제)
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Analysis> analysisHistory;
 }

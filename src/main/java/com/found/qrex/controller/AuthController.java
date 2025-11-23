@@ -1,14 +1,15 @@
-// /api/auth로 시작하는 로그인, 회원가입 관련 API를 담당
-
 package com.found.qrex.controller;
 
 import com.found.qrex.dto.AuthRequest;
 import com.found.qrex.dto.UserResponse;
+import com.found.qrex.security.JwtTokenProvider;
 import com.found.qrex.service.AuthService;
+
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 
@@ -23,9 +24,12 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
+    // [중요] 토큰 재발급을 위해 Provider가 필요합니다.
+    private final JwtTokenProvider jwtTokenProvider;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, JwtTokenProvider jwtTokenProvider) {
         this.authService = authService;
+        this.jwtTokenProvider = jwtTokenProvider;
     }
 
     @PostMapping("/signup")
@@ -53,22 +57,30 @@ public class AuthController {
     }
 
     @PutMapping("/profile")
-    @Operation(summary = "프로필 수정", description = "현재 로그인된 사용자의 프로필 정보를 수정합니다.")
-    public ResponseEntity<String> updateProfile(
+    @Operation(summary = "프로필 수정", description = "현재 로그인된 사용자의 프로필 정보를 수정하고, 갱신된 정보가 담긴 새 토큰을 반환합니다.")
+    public ResponseEntity<UserResponse> updateProfile(
             @AuthenticationPrincipal UserDetails user,
-            @RequestBody AuthRequest.UpdateProfileRequest request) {
-
+            @RequestBody AuthRequest.UpdateProfileRequest request
+    ) {
+        // 1. 보여주신 AuthService 코드가 여기서 실행되어 DB를 바꿉니다.
         authService.updateProfile(user.getUsername(), request);
-        return ResponseEntity.ok("회원정보 수정이 완료되었습니다.");
+
+        // 2. DB는 바뀌었지만, 사용자가 가진 토큰은 아직 옛날 이름입니다.
+        //    따라서 '새 이름'을 넣어서 토큰을 새로 찍어냅니다.
+        //    (user.getUsername()은 ID이고, request.getNewName()이 바뀐 이름입니다)
+        String newToken = jwtTokenProvider.generateToken(user.getUsername(), request.getNewName());
+
+        // 3. 새 토큰을 프론트로 보냅니다.
+        return ResponseEntity.ok(new UserResponse(newToken));
     }
 
     @DeleteMapping("/profile")
-    @Operation(summary = "회원 탈퇴", description = "현재 로그인된 사용자의 계정을 탈퇴시킵니다. 계정 삭제와 동시에 로그아웃 처리됩니다.")
+    @Operation(summary = "회원 탈퇴", description = "현재 로그인된 사용자의 계정을 탈퇴시킵니다.")
     public ResponseEntity<String> deleteAccount(
-            @AuthenticationPrincipal UserDetails user,
+            Principal principal,
             HttpServletRequest request
     ) {
-        authService.deleteAccountAndLogout(user.getUsername(), request);
+        authService.deleteAccountAndLogout(principal.getName(), request);
         return ResponseEntity.ok("회원 탈퇴 및 로그아웃이 완료되었습니다.");
     }
 }

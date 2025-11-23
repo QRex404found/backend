@@ -62,6 +62,10 @@ public class Analysis {
     private LocalDateTime updatedAt;
 
     // 3. 기존 USER 관계 유지
+    // DB의 USER_ID 컬럼 값을 직접 읽어옵니다. (User 객체를 거치지 않음 -> 속도 향상 및 오류 해결)
+    @Column(name = "USER_ID", insertable = false, updatable = false)
+    private String userId;
+
     @ManyToOne
     @JoinColumn(name = "USER_ID", referencedColumnName = "USER_ID")
     private User user;

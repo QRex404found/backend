@@ -49,8 +49,26 @@ public class SecurityConfig {
                 // ✅ 인증 예외 경로 설정 (OPTIONS는 이미 허용되어 있음 - 좋습니다)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/api/auth/**").permitAll()
+
+                        // 🚨 [수정] "/api/auth/**"를 통째로 허용하면 안 됩니다.
+                        // 구체적인 경로만 허용(permitAll)하고, 나머지는 인증(authenticated) 받아야 합니다.
+                        .requestMatchers("/api/auth/signup", "/api/auth/login", "/api/auth/check-id").permitAll()
+
                         .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
+
+                        // Swagger UI 등
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**").permitAll()
+
+                        // AI 채팅 중계 경로는 누구나 접근 가능 (내부에서 로그인 체크함)
+                        .requestMatchers("/api/ai/chat").permitAll()
+
+                        // AI 에이전트가 사용하는 경로는 인증 없이 허용
+                        .requestMatchers("/api/posts/**").permitAll()
+
+                        // ⭐️ [추가] 분석 기록 AI용 경로 허용
+                        .requestMatchers("/api/analysis/ai/**").permitAll()
+
+                        // 그 외 모든 요청(특히 /api/auth/profile)은 인증 필요
                         .anyRequest().authenticated()
                 )
 
@@ -79,7 +97,15 @@ public class SecurityConfig {
                 "http://172.30.133.96:5173",
                 "http://172.30.129.106:5173",
                 "http://172.30.69.67:5173/",
-                "http://172.30.1.40:5173/"
+                "http://172.30.1.40:5173/",
+                "http://172.30.128.96:5173/",
+                "http://172.30.133.16:5173/",
+                "http://192.168.130.106:5173",
+                "https://www.qrex.kro.kr",
+                //혹시
+                "http://www.qrex.kro.kr",
+                "https://qrex.kro.kr",
+                "http://qrex.kro.kr"
         ));
 
         // (중요) 모든 HTTP 메서드 허용

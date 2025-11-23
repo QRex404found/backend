@@ -1,7 +1,7 @@
-//QR 코드 분석, 기록 조회, 그리고 제목 변경과 관련된 API를 제공
 package com.found.qrex.controller;
 
-// import com.found.qrex.domain.Analysis; // 🌟 Analysis 엔티티 임포트 삭제 (DTO만 사용)
+import java.util.Map;
+
 import com.found.qrex.domain.Analysis;
 import com.found.qrex.dto.AnalysisDto;
 import com.found.qrex.dto.AnalysisDto.AnalysisResultResponse;
@@ -10,26 +10,17 @@ import com.found.qrex.service.AnalysisService;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort; // 추가됨
+import org.springframework.data.web.PageableDefault; // 추가됨
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.web.bind.annotation.RequestBody;
-
 
 @RestController
 @RequestMapping("/api/analysis")
 @Tag(name = "분석 API", description = "QR 코드 분석, 기록 조회, 제목 변경 관련 API")
-@CrossOrigin(origins = {
-        "http://localhost:5173", // 5173 포트 허용
-        "http://172.30.133.96:5173", // 게스트 PC의 Network 주소
-        "http://172.30.129.106:5173" // 호스트 PC의 Network 주소
-})  //React 요청 허용 위해 CORS 설정 추가
 public class AnalysisController {
 
     private final AnalysisService analysisService;
@@ -38,48 +29,93 @@ public class AnalysisController {
         this.analysisService = analysisService;
     }
 
-    @PostMapping(value = "/analyze")
-    @Operation(summary = "URL 기반 QR 피싱 분석", description = "URL을 받아 GeoIP, SafeBrowsing을 거쳐 RAG 분석을 실행합니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "분석 성공", content = @Content(schema = @Schema(implementation = AnalysisResultResponse.class))),
-            @ApiResponse(responseCode = "500", description = "분석 서버(FastAPI) 오류 또는 내부 오류")
-    })
-    public ResponseEntity<AnalysisResultResponse> analyzeQr(@RequestParam(value = "url") String url) {
+    // [기존 기능 1] QR 분석
+    @PostMapping("/analyze")
+    public ResponseEntity<AnalysisResultResponse> analyzeQr(@RequestParam("url") String url) {
         try {
-            // Service는 Analysis 엔티티를 반환합니다.
-            Analysis analysisEntity = analysisService.scanAndAnalyze(url);
-            // Analysis 엔티티를 DTO로 변환하여 반환
-            return ResponseEntity.ok(AnalysisResultResponse.fromEntity(analysisEntity));
+            Analysis analysis = analysisService.scanAndAnalyze(url);
+            return ResponseEntity.ok(AnalysisResultResponse.fromEntity(analysis));
         } catch (Exception e) {
             System.err.println("QR 분석 중 오류 발생: " + e.getMessage());
             return ResponseEntity.status(500).body(null);
         }
     }
 
+    // [기존 기능 2] 내 기록 조회 (로그인 유저용)
     @GetMapping("/history")
-    @Operation(summary = "분석 기록 조회", description = "로그인된 사용자의 QR 코드 분석 기록을 페이지별로 조회합니다.")
     public ResponseEntity<Page<AnalysisDto.AnalysisHistoryResponse>> getAnalysisHistory(Pageable pageable) {
-
-        // 🌟 오류 해결: Service가 DTO Page를 반환하므로, DTO Page 타입으로 받습니다.
         Page<AnalysisDto.AnalysisHistoryResponse> history = analysisService.getAnalysisHistory(pageable);
-
         return ResponseEntity.ok(history);
     }
 
+    // [기존 기능 3] 상세 조회
     @GetMapping("/history/{analysisId}")
-    @Operation(summary = "특정 분석 결과 조회", description = "특정 분석 ID에 해당하는 상세 결과를 조회합니다.")
     public ResponseEntity<AnalysisResultResponse> getAnalysisResult(@PathVariable Integer analysisId) {
-
-        // 🌟 오류 해결: Service가 DTO를 반환하므로, DTO 타입으로 받습니다.
         AnalysisResultResponse result = analysisService.getAnalysisResult(analysisId);
-
         return ResponseEntity.ok(result);
     }
 
+    // [기존 기능 4] 제목 수정 (로그인 유저용)
     @PutMapping("/history/{analysisId}")
-    @Operation(summary = "분석 기록 제목 수정", description = "특정 분석 ID에 해당하는 기록의 제목을 수정합니다.")
-    public ResponseEntity<String> updateAnalysisTitle(@PathVariable Integer analysisId, @RequestBody UpdateTitleRequest request) {
+    public ResponseEntity<String> updateAnalysisTitle(
+            @PathVariable Integer analysisId,
+            @RequestBody UpdateTitleRequest request) {
+
         analysisService.updateAnalysisTitle(analysisId, request.getTitle());
         return ResponseEntity.ok("제목이 성공적으로 업데이트되었습니다.");
+    }
+
+    // =================================================================
+    // 👇 [여기가 추가된 부분입니다] AI가 데이터를 읽을 수 있게 해주는 통로
+    // =================================================================
+
+    // ⭐️ [AI 전용] 기록 조회
+    @GetMapping("/ai/history")
+    public ResponseEntity<Page<AnalysisDto.AnalysisHistoryResponse>> getHistoryForAi(
+            @RequestParam("writerId") String writerId,
+            @PageableDefault(size = 10, sort = "CREATED_AT", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        System.out.println("📡 [Controller] AI가 기록 조회를 요청함! ID: " + writerId);
+        return ResponseEntity.ok(analysisService.getHistoryByUserId(writerId, pageable));
+    }
+
+    // ⭐️ [AI 전용] 제목 수정
+    @PatchMapping("/ai/title")
+    public ResponseEntity<String> updateTitleForAi(@RequestBody Map<String, String> request) {
+
+        // 🔹 raw 값들 그대로 안전하게 꺼내기
+        String analysisIdRaw = request.get("analysisId");
+        String newTitle = request.get("newTitle");
+        String userId = request.get("userId");         // AI가 함께 보낼 수 있는 값으로 가정
+        String analyzedUrl = request.get("analyzedUrl"); // 같은 URL 여러 번 분석했을 때 구분용
+
+        // 🔹 analysisId 파싱 (null / "null" / "" 방어)
+        Integer analysisId = null;
+        if (analysisIdRaw != null) {
+            String trimmed = analysisIdRaw.trim();
+            if (!trimmed.isEmpty()
+                    && !"null".equalsIgnoreCase(trimmed)
+                    && !"undefined".equalsIgnoreCase(trimmed)) {
+                try {
+                    analysisId = Integer.valueOf(trimmed);
+                } catch (NumberFormatException e) {
+                    // 숫자 아니면 그냥 null로 두고 Service에서 최신 기록 찾게 함
+                }
+            }
+        }
+
+        System.out.println("📡 [Controller] AI가 제목 수정을 요청함! " +
+                "analysisId=" + analysisId +
+                ", userId=" + userId +
+                ", url=" + analyzedUrl +
+                ", newTitle=" + newTitle);
+
+        // 🔥 핵심: Service 쪽에서
+        // 1) analysisId 있으면 그걸로
+        // 2) 없으면 (userId + analyzedUrl) 기준 최신 기록
+        // 3) 그래도 없으면 userId 기준 최신 기록
+        analysisService.updateTitleByAi(analysisId, analyzedUrl, userId, newTitle);
+
+        return ResponseEntity.ok("AI에 의해 제목이 수정되었습니다.");
     }
 }

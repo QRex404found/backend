@@ -1,4 +1,4 @@
-//DB:BOARD
+// DB: BOARD
 package com.found.qrex.domain;
 
 import jakarta.persistence.*;
@@ -6,8 +6,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
-// import java.sql.Timestamp; // 🚨 Timestamp 임포트를 삭제합니다.
-import java.time.LocalDateTime; // <-- LocalDateTime 임포트를 추가합니다.
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "BOARD")
@@ -16,6 +15,7 @@ import java.time.LocalDateTime; // <-- LocalDateTime 임포트를 추가합니�
 @NoArgsConstructor
 @AllArgsConstructor
 public class Board {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "BOARD_ID", nullable = false)
@@ -31,6 +31,7 @@ public class Board {
     @Column(name = "IMAGE_PATH", length = 255)
     private String imagePath;
 
+    // ⭐ URL 저장 필드 (문제 없음!)
     @Column(name = "URL", length = 2083)
     private String url;
 
@@ -41,11 +42,9 @@ public class Board {
     @Column(name = "REPORT_COUNT", nullable = false)
     private Integer reportCount = 0;
 
-    // 🌟 수정: Timestamp 대신 LocalDateTime 사용
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
-    // 🌟 수정: Timestamp 대신 LocalDateTime 사용
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 }

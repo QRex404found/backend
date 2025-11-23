@@ -36,20 +36,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
 
-        // ✅ OPTIONS는 프리플라이트 → 바로 통과
+        // ✅ OPTIONS는 프리플라이트 → 인증 필터 적용 X
         if (request.getMethod().equals(HttpMethod.OPTIONS.name())) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        String requestURI = request.getRequestURI();
+        String uri = request.getRequestURI();
 
-        // ✅ 로그인/회원가입/ID 중복 확인만 필터 제외
-        if (requestURI.equals("/api/auth/login") ||
-                requestURI.equals("/api/auth/signup") ||
-                requestURI.equals("/api/auth/check-id") ||
-                requestURI.startsWith("/v3/api-docs") ||
-                requestURI.startsWith("/swagger-ui")) {
+        // ✅ 인증 제외 경로들
+        if (uri.equals("/api/auth/login") ||
+                uri.equals("/api/auth/signup") ||
+                uri.equals("/api/auth/check-id") ||
+                uri.startsWith("/v3/api-docs") ||
+                uri.startsWith("/swagger-ui") ||
+                uri.startsWith("/oauth2/") ||
+                uri.startsWith("/login/oauth2/")) {
 
             filterChain.doFilter(request, response);
             return;
@@ -62,31 +64,36 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 String token = authHeader.substring(7);
 
-                // ✅ 로그아웃된 토큰 차단
+                // 🚫 로그아웃된 토큰 차단
                 if (tokenBlacklistService.isBlacklisted(token)) {
                     response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "로그아웃된 토큰입니다.");
                     return;
                 }
 
-                // ✅ 토큰 유효성 검증 + SecurityContext에 유저정보 등록
-                if (jwtTokenProvider.validateToken(token)) {
-                    String userId = jwtTokenProvider.getUserIdFromToken(token);
+                // 🔥 validateToken() → false = 만료 / 위조 / 잘못된 토큰
+                if (!jwtTokenProvider.validateToken(token)) {
+                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "만료되었거나 유효하지 않은 토큰입니다.");
+                    return;
+                }
 
-                    if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                        UserDetails userDetails = userDetailsService.loadUserByUsername(userId);
+                // 🔥 유효한 토큰일 때만 SecurityContext에 인증 정보 등록
+                String userId = jwtTokenProvider.getUserIdFromToken(token);
 
-                        UsernamePasswordAuthenticationToken authToken =
-                                new UsernamePasswordAuthenticationToken(
-                                        userDetails,
-                                        null,
-                                        userDetails.getAuthorities()
-                                );
+                if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                    UserDetails userDetails = userDetailsService.loadUserByUsername(userId);
 
-                        authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                        SecurityContextHolder.getContext().setAuthentication(authToken);
-                    }
+                    UsernamePasswordAuthenticationToken authToken =
+                            new UsernamePasswordAuthenticationToken(
+                                    userDetails,
+                                    null,
+                                    userDetails.getAuthorities()
+                            );
+
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
                 }
             }
+
         } catch (Exception e) {
             e.printStackTrace();
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "JWT 처리 중 오류 발생");

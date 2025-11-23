@@ -11,8 +11,10 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RequestPart;
+
+// ✅ [수정됨] 이 두 줄이 빠져서 에러가 났습니다. 꼭 포함되어야 합니다!
+import java.util.Collections;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/community")
@@ -42,22 +44,16 @@ public class CommunityController {
     @PostMapping("/posts")
     @Operation(summary = "새 게시글 작성", description = "새로운 게시글을 작성합니다. (FormData 사용)")
     public ResponseEntity<?> createPost(
-            // FormData의 텍스트 필드를 @RequestParam으로 받습니다.
             @RequestParam("postTitle") String postTitle,
             @RequestParam("postContents") String postContents,
             @RequestParam(value = "url", required = false) String url,
-
-            // FormData의 파일 필드를 @RequestPart로 받습니다.
-            // (React에서 'photoFile'이라는 키로 보냈으므로 'photoFile'로 받습니다)
             @RequestPart(value = "photoFile", required = false) MultipartFile photoFile
     ) {
-        // 4-1. 받은 텍스트 필드로 DTO를 수동으로 조립합니다.
         BoardDto.BoardCreateRequest request = new BoardDto.BoardCreateRequest();
         request.setPostTitle(postTitle);
         request.setPostContents(postContents);
         request.setUrl(url);
 
-        // 4-2. DTO와 파일을 서비스로 전달합니다.
         communityService.createPost(request, photoFile);
 
         return ResponseEntity.ok("게시글이 성공적으로 작성되었습니다.");
@@ -84,25 +80,24 @@ public class CommunityController {
         return ResponseEntity.ok("게시글이 신고되었습니다.");
     }
 
+    // ✅ [JSON 응답으로 변경됨]
     @PostMapping("/comments/{commentId}/report")
     @Operation(summary = "댓글 신고", description = "특정 댓글을 신고합니다.")
-    public ResponseEntity<String> reportComment(@PathVariable Integer commentId) {
-        communityService.reportComment(commentId);
-        return ResponseEntity.ok("댓글이 신고되었습니다.");
+    public ResponseEntity<Map<String, String>> reportComment(@PathVariable Integer commentId) {
+        String resultMessage = communityService.reportComment(commentId);
+        return ResponseEntity.ok(Collections.singletonMap("message", resultMessage));
     }
 
     @DeleteMapping("/posts/{boardId}")
     @Operation(summary = "게시글 삭제", description = "특정 게시글을 삭제합니다.")
-    public ResponseEntity<String> deletePost(@PathVariable Integer boardId) { // 👈 userId 파라미터 제거
-        // 서비스 호출 시에도 userId를 넘기지 않습니다.
+    public ResponseEntity<String> deletePost(@PathVariable Integer boardId) {
         communityService.deletePost(boardId);
         return ResponseEntity.ok("게시글이 삭제되었습니다.");
     }
 
     @DeleteMapping("/comments/{commentId}")
     @Operation(summary = "댓글 삭제", description = "특정 댓글을 삭제합니다.")
-    public ResponseEntity<String> deleteComment(@PathVariable Integer commentId) { // 👈 userId 파라미터 제거
-        // 서비스 호출 시에도 userId를 넘기지 않습니다.
+    public ResponseEntity<String> deleteComment(@PathVariable Integer commentId) {
         communityService.deleteComment(commentId);
         return ResponseEntity.ok("댓글이 삭제되었습니다.");
     }
