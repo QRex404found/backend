@@ -79,43 +79,5 @@ public class AnalysisController {
         return ResponseEntity.ok(analysisService.getHistoryByUserId(writerId, pageable));
     }
 
-    // ⭐️ [AI 전용] 제목 수정
-    @PatchMapping("/ai/title")
-    public ResponseEntity<String> updateTitleForAi(@RequestBody Map<String, String> request) {
 
-        // 🔹 raw 값들 그대로 안전하게 꺼내기
-        String analysisIdRaw = request.get("analysisId");
-        String newTitle = request.get("newTitle");
-        String userId = request.get("userId");         // AI가 함께 보낼 수 있는 값으로 가정
-        String analyzedUrl = request.get("analyzedUrl"); // 같은 URL 여러 번 분석했을 때 구분용
-
-        // 🔹 analysisId 파싱 (null / "null" / "" 방어)
-        Integer analysisId = null;
-        if (analysisIdRaw != null) {
-            String trimmed = analysisIdRaw.trim();
-            if (!trimmed.isEmpty()
-                    && !"null".equalsIgnoreCase(trimmed)
-                    && !"undefined".equalsIgnoreCase(trimmed)) {
-                try {
-                    analysisId = Integer.valueOf(trimmed);
-                } catch (NumberFormatException e) {
-                    // 숫자 아니면 그냥 null로 두고 Service에서 최신 기록 찾게 함
-                }
-            }
-        }
-
-        System.out.println("📡 [Controller] AI가 제목 수정을 요청함! " +
-                "analysisId=" + analysisId +
-                ", userId=" + userId +
-                ", url=" + analyzedUrl +
-                ", newTitle=" + newTitle);
-
-        // 🔥 핵심: Service 쪽에서
-        // 1) analysisId 있으면 그걸로
-        // 2) 없으면 (userId + analyzedUrl) 기준 최신 기록
-        // 3) 그래도 없으면 userId 기준 최신 기록
-        analysisService.updateTitleByAi(analysisId, analyzedUrl, userId, newTitle);
-
-        return ResponseEntity.ok("AI에 의해 제목이 수정되었습니다.");
-    }
 }

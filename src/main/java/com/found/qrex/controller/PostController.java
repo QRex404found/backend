@@ -28,7 +28,9 @@ public class PostController {
         this.passwordEncoder = passwordEncoder;
     }
 
+    // ===========================================================
     // 1. 게시글 검색
+    // ===========================================================
     @GetMapping("/search")
     public List<String> searchPosts(@RequestParam("keyword") String keyword) {
         return boardRepository.findByPostTitleContainingIgnoreCaseOrPostContentsContaining(keyword, keyword)
@@ -38,7 +40,9 @@ public class PostController {
                 .toList();
     }
 
+    // ===========================================================
     // 2. 게시글 작성
+    // ===========================================================
     @PostMapping
     public String createPost(@RequestBody PostRequest request) {
 
@@ -54,7 +58,7 @@ public class PostController {
         Board board = new Board();
         board.setPostTitle(request.getTitle());
         board.setPostContents(request.getContent());
-        board.setUrl(request.getUrl()); // ⭐ URL 저장 로직 추가
+        board.setUrl(request.getUrl());
         board.setUser(author);
         board.setCreatedAt(LocalDateTime.now());
         board.setUpdatedAt(LocalDateTime.now());
@@ -65,7 +69,7 @@ public class PostController {
     }
 
     // ===========================================================
-    // 3. 같은 제목의 내 게시글 목록 조회 (AI 선택용)
+    // 3. 🔥 같은 제목의 내 게시글 목록 조회 (AI 선택용)
     // ===========================================================
     @GetMapping("/myPostsByTitle")
     public List<MyPostPreviewResponse> myPostsByTitle(
@@ -85,21 +89,25 @@ public class PostController {
                 .filter(post -> post.getUser().getUserId().equals(requesterId))
                 .map(post -> new MyPostPreviewResponse(
                         post.getBoardId(),
+                        post.getPostTitle(),                     // ⭐ 제목 추가!!!
                         createPreview(post.getPostContents())
                 ))
                 .toList();
     }
 
-    // 🆕 내용 미리보기(20자 제한)
+    // 🆕 내용 미리보기 생성 (20자 제한)
     private String createPreview(String content) {
         if (content == null) return "";
         content = content.trim();
         return content.length() > 20 ? content.substring(0, 20) + "…" : content;
     }
 
-    // 🔥 날짜 제거 → contentPreview만 노출
+    // ===========================================================
+    // ⭐ 수정된 응답 DTO — title 필드를 포함하도록 변경
+    // ===========================================================
     public record MyPostPreviewResponse(
             Integer postId,
+            String title,           // 🔥 꼭 필요했던 필드!
             String contentPreview
     ) {}
 
