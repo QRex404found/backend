@@ -3,7 +3,7 @@ package com.found.qrex.repository;
 
 import com.found.qrex.domain.Comment;
 import com.found.qrex.domain.Board;
-import com.found.qrex.domain.User; // 👈 [필수] 이 줄이 빠져서 에러가 난 것입니다!
+import com.found.qrex.domain.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
